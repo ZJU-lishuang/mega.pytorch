@@ -119,8 +119,8 @@ class VIDMEGADataset(VIDDataset):
             for id in range(size):
                 filename = self.pattern[idx] % shuffled_index[
                     (idx - self.start_id[idx] + cfg.MODEL.VID.MEGA.GLOBAL.SIZE - id - 1) % self.frame_seg_len[idx]]
-                img = Image.open(self._img_dir % filename).convert("RGB")
-                img_refs_g.append(img)
+                img_ref = Image.open(self._img_dir % filename).convert("RGB")
+                img_refs_g.append(img_ref)
 
         target = self.get_groundtruth(idx)
         target = target.clip_to_image(remove_empty=True)
