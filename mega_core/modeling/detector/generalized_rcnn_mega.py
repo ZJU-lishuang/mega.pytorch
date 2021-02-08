@@ -169,19 +169,21 @@ class GeneralizedRCNNMEGA(nn.Module):
             self.proposals_dis = deque(maxlen=self.all_frame_interval)
             self.proposals_feat = deque(maxlen=self.all_frame_interval)
             self.proposals_feat_dis = deque(maxlen=self.all_frame_interval)
-
+            #视频帧记忆模块队列初始化
             self.roi_heads.box.feature_extractor.init_memory()
             if self.global_enable:
+                #全局池初始化
                 self.roi_heads.box.feature_extractor.init_global()
 
             feats_cur = self.backbone(imgs.tensors)[0]
             proposals_cur = self.rpn(imgs, (feats_cur, ), version="ref")
             proposals_feat_cur = self.roi_heads.box.feature_extractor(feats_cur, proposals_cur, pre_calculate=True)
+            #初始帧时，将前12帧初始化为当前帧
             while len(self.feats) < self.key_frame_location + 1:
                 update_feature(None, feats_cur, proposals_cur, proposals_feat_cur)
-
+            #更新未来帧,实时视频时，下面的条件语句跳过
             while len(self.feats) < self.all_frame_interval:
-                self.end_id = min(self.end_id + 1, self.seg_len - 1)
+                self.end_id = min(self.end_id + 1, self.seg_len - 1) #self.end_id + 1，视频帧计数加1，但不超过视频长度
                 end_filename = infos["pattern"] % self.end_id
                 end_image = Image.open(infos["img_dir"] % end_filename).convert("RGB")
 
@@ -193,6 +195,7 @@ class GeneralizedRCNNMEGA(nn.Module):
                 update_feature(end_image)
 
         elif infos["frame_category"] == 1:
+            #非初始帧时，局部帧每次更新一帧
             self.end_id = min(self.end_id + 1, self.seg_len - 1)
 
             end_image = infos["ref_l"][0].tensors
@@ -201,13 +204,14 @@ class GeneralizedRCNNMEGA(nn.Module):
 
         # 1. update global
         if infos["ref_g"]:
+            #更新全局帧，初始帧时，生成10帧，之后每次更新一帧
             for global_img in infos["ref_g"]:
                 feats = self.backbone(global_img.tensors)[0]
                 proposals = self.rpn(global_img, (feats,), version="ref")
                 proposals_feat = self.roi_heads.box.feature_extractor(feats, proposals, pre_calculate=True)
 
                 self.roi_heads.box.feature_extractor.update_global(proposals_feat)
-
+        #视频帧的当前帧
         feats = self.feats[self.key_frame_location]
         proposals, proposal_losses = self.rpn(imgs, (feats, ), None)
 

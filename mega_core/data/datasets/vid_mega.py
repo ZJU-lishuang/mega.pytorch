@@ -105,6 +105,7 @@ class VIDMEGADataset(VIDDataset):
         img_refs_l = []
         
         # reading other images of the queue (not necessary to be the last one, but last one here)
+        # MEGA.MAX_OFFSET=12,the last one in the local pool,MEGA.MAX_OFFSET=0 for online
         ref_id = min(self.frame_seg_len[idx] - 1, frame_id + cfg.MODEL.VID.MEGA.MAX_OFFSET)
         ref_filename = self.pattern[idx] % ref_id
         img_ref = Image.open(self._img_dir % ref_filename).convert("RGB")
@@ -112,6 +113,7 @@ class VIDMEGADataset(VIDDataset):
 
         img_refs_g = []
         if cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
+            # while the frame is the first one,the global pool need to create.if not,only add new one for offline
             size = cfg.MODEL.VID.MEGA.GLOBAL.SIZE if frame_id == 0 else 1
             shuffled_index = self.shuffled_index[str(self.start_id[idx])]
             for id in range(size):
@@ -122,7 +124,7 @@ class VIDMEGADataset(VIDDataset):
 
         target = self.get_groundtruth(idx)
         target = target.clip_to_image(remove_empty=True)
-
+        #此处img应该已经替换为gloal，但是实际需要的是当前帧，为一处bug，导致初始帧结果异常。
         if self.transforms is not None:
             img, target = self.transforms(img, target)
             for i in range(len(img_refs_l)):

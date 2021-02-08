@@ -754,12 +754,12 @@ class MEGAFeatureExtractor(AttentionExtractor):
     def generate_feats_test(self, x, proposals):
         proposals, proposals_ref, proposals_ref_dis, x_ref, x_ref_dis = proposals
 
-        if self.global_enable and self.global_cache:
+        if self.global_enable and self.global_cache: #最新的全局特征和局部特征融合
             x = self.update_lm(x)
             x_ref = self.update_lm(x_ref)
             x_ref_dis = self.update_lm(x_ref_dis)
 
-        rois_key = proposals[0].bbox
+        rois_key = proposals[0].bbox  #当前帧，关键帧
         rois = proposals_ref.bbox
         rois_dis = proposals_ref_dis.bbox
 
@@ -823,7 +823,7 @@ class MEGAFeatureExtractor(AttentionExtractor):
                                                      index=i)
         feats_cur = feats_cur + attention
 
-        if i != self.stage - 1:
+        if i != self.stage - 1: #2
             feats_cur = F.relu(self.l_fcs[i + 1](feats_cur))
 
         return feats_cur
@@ -908,26 +908,26 @@ class MEGAFeatureExtractor(AttentionExtractor):
 
         self.local_cache = []
 
-        self.generate_feats_test(x, proposals)
+        self.generate_feats_test(x, proposals) #全局特征融合到局部特征
 
-        for i in range(self.stage):
+        for i in range(self.stage):   #局部特征融合
             memory = self.mem[i] if self.mem[i] else None
 
-            if self.memory_enable:
+            if self.memory_enable:    #使用local_cache更新记忆模块
                 self.update_memory(i, self.local_cache[i])
 
-            feat_cur = self._forward_test_single(i, self.local_cache[i], memory)
+            feat_cur = self._forward_test_single(i, self.local_cache[i], memory)  #通过记忆模块增强局部帧
 
-            if i == self.stage - 1:
+            if i == self.stage - 1:  #2
                 x = feat_cur
-            elif i == self.stage - 2:
+            elif i == self.stage - 2: #1
                 self.local_cache[i + 1]["feats_cur"] = feat_cur[:len(proposals[0][0])]
                 self.local_cache[i + 1]["feats_ref"] = feat_cur[len(proposals[0][0]):]
-            else:
+            else: #0  为下一层生成特征
                 self.local_cache[i + 1]["feats_cur"] = feat_cur
                 self.local_cache[i + 1]["feats_ref"] = feat_cur[len(proposals[0][0]):]
 
-        for i in range(self.global_res_stage):
+        for i in range(self.global_res_stage):  #全局特征融合
             x = self.update_lm(x, i + 1)
 
         return x
