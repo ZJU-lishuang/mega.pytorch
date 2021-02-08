@@ -194,9 +194,16 @@ class GeneralizedRCNNMEGA(nn.Module):
 
         elif infos["frame_category"] == 1:
             self.end_id = min(self.end_id + 1, self.seg_len - 1)
-            end_image = infos["ref_l"][0].tensors
+            #???????????????????
+            if len(infos["ref_l"])>1:
+                for i in range(len(infos["ref_l"])):
+                    end_image = infos["ref_l"][i].tensors
 
-            update_feature(end_image)
+                    update_feature(end_image)
+            else:
+                end_image = infos["ref_l"][0].tensors
+
+                update_feature(end_image)
 
         # 1. update global
         if infos["ref_g"]:
