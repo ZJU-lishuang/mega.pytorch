@@ -103,19 +103,12 @@ class VIDMEGADataset(VIDDataset):
             frame_category = 1
 
         img_refs_l = []
-        #test video every 12 frames
-        if frame_id >11:
-            for id in range(10):
-                ref_id=frame_id-12+id
-                ref_filename = self.pattern[idx] % ref_id
-                img_ref = Image.open(self._img_dir % ref_filename).convert("RGB")
-                img_refs_l.append(img_ref)
-        else:
-            # reading other images of the queue (not necessary to be the last one, but last one here)
-            ref_id = min(self.frame_seg_len[idx] - 1, frame_id + cfg.MODEL.VID.MEGA.MAX_OFFSET)
-            ref_filename = self.pattern[idx] % ref_id
-            img_ref = Image.open(self._img_dir % ref_filename).convert("RGB")
-            img_refs_l.append(img_ref)
+        
+        # reading other images of the queue (not necessary to be the last one, but last one here)
+        ref_id = min(self.frame_seg_len[idx] - 1, frame_id + cfg.MODEL.VID.MEGA.MAX_OFFSET)
+        ref_filename = self.pattern[idx] % ref_id
+        img_ref = Image.open(self._img_dir % ref_filename).convert("RGB")
+        img_refs_l.append(img_ref)
 
         img_refs_g = []
         if cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
