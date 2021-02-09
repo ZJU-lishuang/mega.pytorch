@@ -6,6 +6,7 @@ _ext
 mega_core.egg-info/
 build/
 dist/
+gitclone/
 
 # pytorch/python/numpy formats
 *.pth

@@ -11,13 +11,16 @@ class VIDMEGADataset(VIDDataset):
         if not self.is_train:
             self.start_index = []
             self.start_id = []
+            self.online=True
+            self.offline=not self.online
             if cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
                 self.shuffled_index = {}
             for id, image_index in enumerate(self.image_set_index):
                 frame_id = int(image_index.split("/")[-1])
                 if frame_id == 0:
                     self.start_index.append(id)
-                    if cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
+                    #offline global pool
+                    if self.offline and cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
                         shuffled_index = np.arange(self.frame_seg_len[id])
                         if cfg.MODEL.VID.MEGA.GLOBAL.SHUFFLE:
                             np.random.shuffle(shuffled_index)
@@ -26,6 +29,14 @@ class VIDMEGADataset(VIDDataset):
                     self.start_id.append(id)
                 else:
                     self.start_id.append(self.start_index[-1])
+                
+                #online global pool
+                if self.online and cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
+                    filename = self.image_set_index[id]
+                    shuffled_index=np.arrange(frame_id+1)
+                    if cfg.MODEL.VID.MEGA.GLOBAL.SHUFFLE:
+                        np.random.shuffle(shuffled_index)
+                    self.shuffled_index[str(id)]=shuffled_index
 
     def _get_train(self, idx):
         filename = self.image_set_index[idx]
@@ -115,12 +126,26 @@ class VIDMEGADataset(VIDDataset):
         if cfg.MODEL.VID.MEGA.GLOBAL.ENABLE:
             # while the frame is the first one,the global pool need to create.if not,only add new one for offline
             size = cfg.MODEL.VID.MEGA.GLOBAL.SIZE if frame_id == 0 else 1
-            shuffled_index = self.shuffled_index[str(self.start_id[idx])]
-            for id in range(size):
-                filename = self.pattern[idx] % shuffled_index[
-                    (idx - self.start_id[idx] + cfg.MODEL.VID.MEGA.GLOBAL.SIZE - id - 1) % self.frame_seg_len[idx]]
-                img_ref = Image.open(self._img_dir % filename).convert("RGB")
-                img_refs_g.append(img_ref)
+            if self.offline:
+                shuffled_index = self.shuffled_index[str(self.start_id[idx])]
+                for id in range(size):
+                    filename = self.pattern[idx] % shuffled_index[
+                        (idx - self.start_id[idx] + cfg.MODEL.VID.MEGA.GLOBAL.SIZE - id - 1) % self.frame_seg_len[idx]]
+                    img_ref = Image.open(self._img_dir % filename).convert("RGB")
+                    img_refs_g.append(img_ref)
+            elif self.online:
+                shuffled_index = self.shuffled_index[str(idx)]
+                frame_index=idx-self.start_id[idx] #视频帧序号
+                assert frame_id ==frame_index
+                # global_size=(frame_index+1)/4
+                # #处理global size数值小于1的问题
+                # if global_size<1:
+                #     global_size=1
+                # 处理global size数值小于10的问题
+                for id in range(int(size)):
+                    filename=self.pattern[idx] % shuffled_index[id%(frame_index+1)]
+                    img_ref = Image.open(self._img_dir % filename).convert("RGB")
+                    img_refs_g.append(img_ref)
 
         target = self.get_groundtruth(idx)
         target = target.clip_to_image(remove_empty=True)
